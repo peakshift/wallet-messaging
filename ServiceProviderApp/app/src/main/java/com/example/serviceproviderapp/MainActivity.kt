@@ -47,31 +47,23 @@ import kotlinx.coroutines.launch
 
 class MainActivity : ComponentActivity() {
 
-    private val lnBitsService = RetrofitFactory.retrofit.create(LNBitsService::class.java)
-    private var walletDetails: WalletDetails? by mutableStateOf(null)
-
-    private var lightningInvoice: LightningInvoice? by mutableStateOf(null)
+    private lateinit var viewModel: MainViewModel
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
-        lifecycleScope.launchWhenStarted {
-            walletDetails = lnBitsService.getWalletDetails()
-        }
+        val lnBitsService = RetrofitFactory.retrofit.create(LNBitsService::class.java)
+        viewModel = MainViewModel(lnBitsService)
 
         setContent {
             ServiceProviderAppTheme {
                 ServiceProviderAppMainScreen(
-                    walletDetails = walletDetails,
-                    lightningInvoice = lightningInvoice?.paymentRequest,
-                    onGenerateInvoiceClick = { amount ->
-                        lifecycleScope.launch {
-                           lightningInvoice = lnBitsService.generateInvoice(LightningInvoiceRequest(amount = amount))
-                        }
-                    },
-                    onCopyInvoiceClick = {
-                        copyToClipboard(it, "invoice")
-                    }
+                    walletDetails = viewModel.walletDetails,
+                    lightningInvoice = viewModel.lightningInvoice?.paymentRequest,
+                    invoiceAmount = viewModel.invoiceAmount,
+                    onInvoiceAmountEntered = { viewModel.onInvoiceAmountEntered(it) },
+                    onGenerateInvoiceClick = { viewModel.generateInvoice() },
+                    onCopyInvoiceClick = { copyToClipboard(it, "invoice") }
                 )
             }
         }
@@ -89,19 +81,12 @@ class MainActivity : ComponentActivity() {
 private fun ServiceProviderAppMainScreen(
     walletDetails: WalletDetails?,
     lightningInvoice: String? = null,
-    onGenerateInvoiceClick: (Int) -> Unit,
+    invoiceAmount: Int,
+    onInvoiceAmountEntered: (String) -> Unit,
+    onGenerateInvoiceClick: () -> Unit,
     onCopyInvoiceClick: (String) -> Unit
 ) {
-    var invoiceAmount by remember { mutableStateOf("") }
-
-    Scaffold(
-        topBar = {
-
-        },
-        floatingActionButton = {
-
-        }
-    ) {
+    Scaffold {
         Column(
             modifier = Modifier
                 .fillMaxSize()
@@ -124,17 +109,16 @@ private fun ServiceProviderAppMainScreen(
                     horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
                     OutlinedTextField(
-                        value = invoiceAmount,
-                        onValueChange = { invoiceAmount = it },
+                        value = invoiceAmount.toString(),
+                        onValueChange = onInvoiceAmountEntered,
                         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                        placeholder = { Text(text = "0") },
-                        supportingText = { Text(text = "Amount") }
+                        placeholder = { Text(text = "Sats amount") }
                     )
                     Text(text = "sats")
                 }
                 Spacer(modifier = Modifier.height(16.dp))
                 Button(
-                    onClick = { onGenerateInvoiceClick(invoiceAmount.toInt()) },
+                    onClick = onGenerateInvoiceClick,
                     shape = RoundedCornerShape(50),
                     modifier = Modifier.imePadding()
                 ) {
@@ -166,6 +150,8 @@ fun ServiceProviderAppMainScreenPreview() {
         ServiceProviderAppMainScreen(
             walletDetails = WalletDetails( "Wallet Name", 100000),
             onGenerateInvoiceClick = {},
+            invoiceAmount = 0,
+            onInvoiceAmountEntered = {},
             onCopyInvoiceClick = {}
         )
     }
