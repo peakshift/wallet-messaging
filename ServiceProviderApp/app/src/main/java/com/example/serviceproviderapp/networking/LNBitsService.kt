@@ -10,12 +10,14 @@ import retrofit2.http.POST
 
 interface LNBitsService {
 
-    @Headers("X-Api-Key: 9f8f22d360964c09b9c28d1486334f3f")
+    @Headers("X-Api-Key: $API_KEY")
     @GET("/api/v1/wallet")
     suspend fun getWalletDetails(): WalletDetails
 
-    @Headers("X-Api-Key: 9f8f22d360964c09b9c28d1486334f3f")
+    @Headers("X-Api-Key: $API_KEY")
     @POST("/api/v1/payments")
     suspend fun generateInvoice(@Body lightningInvoiceRequest: LightningInvoiceRequest): LightningInvoice
 
 }
+
+private const val API_KEY = "9f8f22d360964c09b9c28d1486334f3f"
