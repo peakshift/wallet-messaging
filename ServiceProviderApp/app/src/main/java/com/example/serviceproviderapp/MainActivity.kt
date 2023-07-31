@@ -1,12 +1,16 @@
 package com.example.serviceproviderapp
 
 import android.annotation.SuppressLint
+import android.app.Activity
 import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Context
+import android.content.Intent
+import android.net.Uri
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -17,8 +21,10 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
@@ -27,6 +33,8 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
@@ -38,6 +46,12 @@ import com.example.serviceproviderapp.ui.theme.ServiceProviderAppTheme
 class MainActivity : ComponentActivity() {
 
     private lateinit var viewModel: MainViewModel
+
+    private val walletAppResultLauncher = registerForActivityResult(ActivityResultContracts.StartActivityForResult()) {
+        if (it.resultCode == Activity.RESULT_OK) {
+            viewModel.refresh()
+        }
+    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -53,7 +67,8 @@ class MainActivity : ComponentActivity() {
                     invoiceAmount = viewModel.invoiceAmount,
                     onInvoiceAmountEntered = { viewModel.onInvoiceAmountEntered(it) },
                     onGenerateInvoiceClick = { viewModel.generateInvoice() },
-                    onCopyInvoiceClick = { copyToClipboard(it, "invoice") }
+                    onCopyInvoiceClick = { copyToClipboard(it, "invoice") },
+                    onPayWithWalletClick = { openWalletApp(it) }
                 )
             }
         }
@@ -62,6 +77,13 @@ class MainActivity : ComponentActivity() {
     private fun copyToClipboard(text: String, label: String) {
         val clipboard = getSystemService(Context.CLIPBOARD_SERVICE) as? ClipboardManager
         clipboard?.setPrimaryClip(ClipData.newPlainText(label, text))
+    }
+
+    private fun openWalletApp(lightningInvoice: String) {
+        val uri = Uri.parse("lightning:///$lightningInvoice")
+        val intent = Intent(Intent.ACTION_VIEW, uri)
+
+        walletAppResultLauncher.launch(intent)
     }
 }
 
@@ -74,9 +96,14 @@ private fun ServiceProviderAppMainScreen(
     invoiceAmount: Int,
     onInvoiceAmountEntered: (String) -> Unit,
     onGenerateInvoiceClick: () -> Unit,
-    onCopyInvoiceClick: (String) -> Unit
+    onCopyInvoiceClick: (String) -> Unit,
+    onPayWithWalletClick: (String) -> Unit
 ) {
     Scaffold {
+        val focusManager = LocalFocusManager.current
+
+
+
         Column(
             modifier = Modifier
                 .fillMaxSize()
@@ -101,6 +128,7 @@ private fun ServiceProviderAppMainScreen(
                     OutlinedTextField(
                         value = invoiceAmount.toString(),
                         onValueChange = onInvoiceAmountEntered,
+                        keyboardActions = KeyboardActions(onDone = { focusManager.clearFocus() }),
                         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                         placeholder = { Text(text = "Sats amount") }
                     )
@@ -108,19 +136,34 @@ private fun ServiceProviderAppMainScreen(
                 }
                 Spacer(modifier = Modifier.height(16.dp))
                 Button(
-                    onClick = onGenerateInvoiceClick,
+                    onClick = {
+                        onGenerateInvoiceClick()
+                        focusManager.clearFocus()
+                    },
                     shape = RoundedCornerShape(50),
                     modifier = Modifier.imePadding()
                 ) {
                     Text(text = "Generate invoice")
                 }
-                
+
                 lightningInvoice?.let { invoice ->
                     Spacer(modifier = Modifier.height(32.dp))
                     Text(text = invoice)
                     Spacer(modifier = Modifier.height(8.dp))
-                    Button(onClick = { onCopyInvoiceClick(lightningInvoice) }) {
-                        Text(text = "Copy")
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Button(onClick = { onCopyInvoiceClick(lightningInvoice) }) {
+                            Text(text = "Copy")
+                        }
+
+                        Button(
+                            onClick = { onPayWithWalletClick(lightningInvoice) },
+                            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFF7931A))
+                        ) {
+                            Text(text = "Pay with Wallet ₿")
+                        }
                     }
                 }
             } else {
@@ -138,11 +181,13 @@ private fun ServiceProviderAppMainScreen(
 fun ServiceProviderAppMainScreenPreview() {
     ServiceProviderAppTheme {
         ServiceProviderAppMainScreen(
-            walletDetails = WalletDetails( "Wallet Name", 100000),
+            walletDetails = WalletDetails("Wallet Name", 100000),
             onGenerateInvoiceClick = {},
+            lightningInvoice = null,
             invoiceAmount = 0,
             onInvoiceAmountEntered = {},
-            onCopyInvoiceClick = {}
+            onCopyInvoiceClick = {},
+            onPayWithWalletClick = {}
         )
     }
 }

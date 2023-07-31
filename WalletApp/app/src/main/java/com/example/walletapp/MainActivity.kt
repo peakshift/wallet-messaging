@@ -13,6 +13,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.wrapContentHeight
 import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
@@ -34,6 +35,8 @@ import androidx.lifecycle.repeatOnLifecycle
 import com.example.serviceproviderapp.data.models.WalletDetails
 import com.example.serviceproviderapp.networking.LNBitsService
 import com.example.serviceproviderapp.networking.RetrofitFactory
+import com.example.walletapp.ui.theme.LightOrange
+import com.example.walletapp.ui.theme.WalletAppTheme
 import kotlinx.coroutines.launch
 
 class MainActivity : ComponentActivity() {
@@ -53,13 +56,15 @@ class MainActivity : ComponentActivity() {
         }
 
         setContent {
-            WalletAppMainScreen(
-                walletDetails = viewModel.walletDetails,
-                onPayInvoiceClick = {
-                    val intent = PayInvoiceActivity.newIntent(this, it)
-                    startActivity(intent)
-                }
-            )
+            WalletAppTheme {
+                WalletAppMainScreen(
+                    walletDetails = viewModel.walletDetails,
+                    onPayInvoiceClick = {
+                        val intent = PayInvoiceActivity.newIntent(this, it)
+                        startActivity(intent)
+                    }
+                )
+            }
         }
     }
 }
@@ -108,7 +113,8 @@ private fun WalletAppMainScreen(
             Spacer(modifier = Modifier)
             Button(
                 onClick = { onPayInvoiceClick(textFieldValue) },
-                enabled = textFieldValue.isNotBlank()
+                enabled = textFieldValue.isNotBlank(),
+                colors = ButtonDefaults.buttonColors(containerColor = LightOrange)
             ) {
                 Text(text = "Pay")
             }
@@ -119,8 +125,10 @@ private fun WalletAppMainScreen(
 @Preview(showBackground = true)
 @Composable
 fun GreetingPreview() {
-    WalletAppMainScreen(
-        walletDetails = WalletDetails("Wallet name", 12345),
-        onPayInvoiceClick = {}
-    )
+    WalletAppTheme {
+        WalletAppMainScreen(
+            walletDetails = WalletDetails("Wallet name", 12345),
+            onPayInvoiceClick = {}
+        )
+    }
 }

@@ -1,5 +1,6 @@
 package com.example.walletapp
 
+import android.app.Activity
 import android.content.Context
 import android.content.Intent
 import android.os.Bundle
@@ -11,6 +12,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
@@ -35,6 +37,7 @@ import com.example.serviceproviderapp.networking.LNBitsService
 import com.example.serviceproviderapp.networking.RetrofitFactory
 import com.example.walletapp.data.models.DecodedLightningInvoice
 import com.example.walletapp.data.models.PayInvoiceRequest
+import com.example.walletapp.ui.theme.LightOrange
 import com.example.walletapp.ui.theme.WalletAppTheme
 import kotlinx.coroutines.launch
 
@@ -60,6 +63,7 @@ class PayInvoiceActivity : ComponentActivity() {
                 onConfirmPaymentClick = {
                     coroutineScope.launch {
                         lnBitsService.payInvoice(PayInvoiceRequest(invoice))
+                        setResult(Activity.RESULT_OK)
                         finish()
                     }
                 }
@@ -68,7 +72,6 @@ class PayInvoiceActivity : ComponentActivity() {
     }
 
     companion object {
-
         private const val INVOICE_EXTRA = "invoice_extra"
 
         fun newIntent(context: Context, invoice: String): Intent {
@@ -76,9 +79,7 @@ class PayInvoiceActivity : ComponentActivity() {
             intent.putExtra(INVOICE_EXTRA, invoice)
             return intent
         }
-
     }
-
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -111,7 +112,10 @@ private fun PayInvoiceScreen(
                 textAlign = TextAlign.Center
             )
             Spacer(modifier = Modifier.height(48.dp))
-            Button(onClick = onConfirmPaymentClick) {
+            Button(
+                onClick = onConfirmPaymentClick,
+                colors = ButtonDefaults.buttonColors(containerColor = LightOrange)
+            ) {
                 Text(text = "Confirm Payment")
             }
         }

@@ -24,9 +24,11 @@ class MainViewModel(
         private set
 
     init {
-        viewModelScope.launch {
-            walletDetails = lnBitsService.getWalletDetails()
-        }
+        getWalletDetails()
+    }
+
+    fun refresh() {
+        getWalletDetails()
     }
 
     fun onInvoiceAmountEntered(amountText: String) {
@@ -38,6 +40,13 @@ class MainViewModel(
     fun generateInvoice() {
         viewModelScope.launch {
             lightningInvoice = lnBitsService.generateInvoice(LightningInvoiceRequest(amount = invoiceAmount))
+        }
+    }
+
+    private fun getWalletDetails() {
+        viewModelScope.launch {
+            val details = lnBitsService.getWalletDetails()
+            walletDetails = details
         }
     }
 }
