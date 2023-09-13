@@ -59,8 +59,8 @@ class MainActivity : ComponentActivity() {
             WalletAppTheme {
                 WalletAppMainScreen(
                     walletDetails = viewModel.walletDetails,
-                    onPayInvoiceClick = {
-                        val intent = PayInvoiceActivity.newIntent(this, it)
+                    onPayInvoiceClick = { invoice ->
+                        val intent = PayInvoiceActivity.newIntent(this, invoice)
                         startActivity(intent)
                     }
                 )

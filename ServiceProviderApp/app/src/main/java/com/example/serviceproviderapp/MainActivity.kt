@@ -7,6 +7,7 @@ import android.content.ClipboardManager
 import android.content.Context
 import android.content.Intent
 import android.net.Uri
+import android.os.Build
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
@@ -20,9 +21,11 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -38,6 +41,7 @@ import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import androidx.core.os.BuildCompat
 import com.example.serviceproviderapp.data.models.WalletDetails
 import com.example.serviceproviderapp.networking.LNBitsService
 import com.example.serviceproviderapp.networking.RetrofitFactory
@@ -47,11 +51,12 @@ class MainActivity : ComponentActivity() {
 
     private lateinit var viewModel: MainViewModel
 
-    private val walletAppResultLauncher = registerForActivityResult(ActivityResultContracts.StartActivityForResult()) {
-        if (it.resultCode == Activity.RESULT_OK) {
-            viewModel.refresh()
+    private val walletAppResultLauncher =
+        registerForActivityResult(ActivityResultContracts.StartActivityForResult()) {
+            if (it.resultCode == Activity.RESULT_OK) {
+                viewModel.refresh()
+            }
         }
-    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -80,7 +85,12 @@ class MainActivity : ComponentActivity() {
     }
 
     private fun openWalletApp(lightningInvoice: String) {
-        val uri = Uri.parse("lightning:///$lightningInvoice")
+        val uri = Uri.Builder()
+            .scheme("lightning")
+            .appendQueryParameter("invoice", lightningInvoice)
+            .appendQueryParameter("providerName", getString(R.string.app_name))
+            .appendQueryParameter("providerID", packageName)
+            .build();
         val intent = Intent(Intent.ACTION_VIEW, uri)
 
         walletAppResultLauncher.launch(intent)
@@ -93,7 +103,7 @@ class MainActivity : ComponentActivity() {
 private fun ServiceProviderAppMainScreen(
     walletDetails: WalletDetails?,
     lightningInvoice: String? = null,
-    invoiceAmount: Int,
+    invoiceAmount: String?,
     onInvoiceAmountEntered: (String) -> Unit,
     onGenerateInvoiceClick: () -> Unit,
     onCopyInvoiceClick: (String) -> Unit,
@@ -102,11 +112,10 @@ private fun ServiceProviderAppMainScreen(
     Scaffold {
         val focusManager = LocalFocusManager.current
 
-
-
         Column(
             modifier = Modifier
                 .fillMaxSize()
+                .verticalScroll(rememberScrollState())
                 .padding(horizontal = 24.dp, vertical = 32.dp),
         ) {
             if (walletDetails != null) {
@@ -126,7 +135,7 @@ private fun ServiceProviderAppMainScreen(
                     horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
                     OutlinedTextField(
-                        value = invoiceAmount.toString(),
+                        value = invoiceAmount ?: "",
                         onValueChange = onInvoiceAmountEntered,
                         keyboardActions = KeyboardActions(onDone = { focusManager.clearFocus() }),
                         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
@@ -141,7 +150,7 @@ private fun ServiceProviderAppMainScreen(
                         focusManager.clearFocus()
                     },
                     shape = RoundedCornerShape(50),
-                    modifier = Modifier.imePadding()
+                    enabled = !invoiceAmount.isNullOrBlank(),
                 ) {
                     Text(text = "Generate invoice")
                 }
@@ -184,7 +193,7 @@ fun ServiceProviderAppMainScreenPreview() {
             walletDetails = WalletDetails("Wallet Name", 100000),
             onGenerateInvoiceClick = {},
             lightningInvoice = null,
-            invoiceAmount = 0,
+            invoiceAmount = "",
             onInvoiceAmountEntered = {},
             onCopyInvoiceClick = {},
             onPayWithWalletClick = {}

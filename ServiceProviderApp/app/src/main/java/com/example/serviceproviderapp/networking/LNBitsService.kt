@@ -3,6 +3,7 @@ package com.example.serviceproviderapp.networking
 import com.example.serviceproviderapp.data.models.LightningInvoice
 import com.example.serviceproviderapp.data.models.LightningInvoiceRequest
 import com.example.serviceproviderapp.data.models.WalletDetails
+import io.reactivex.rxjava3.core.Single
 import retrofit2.http.Body
 import retrofit2.http.GET
 import retrofit2.http.Headers
@@ -12,11 +13,11 @@ interface LNBitsService {
 
     @Headers("X-Api-Key: $API_KEY")
     @GET("/api/v1/wallet")
-    suspend fun getWalletDetails(): WalletDetails
+    fun getWalletDetails(): Single<WalletDetails>
 
     @Headers("X-Api-Key: $API_KEY")
     @POST("/api/v1/payments")
-    suspend fun generateInvoice(@Body lightningInvoiceRequest: LightningInvoiceRequest): LightningInvoice
+    fun generateInvoice(@Body lightningInvoiceRequest: LightningInvoiceRequest): Single<LightningInvoice>
 
 }
 
