@@ -3,36 +3,21 @@ package com.example.walletapp
 import android.app.Activity
 import android.content.Context
 import android.content.Intent
-import android.content.pm.ApplicationInfo
-import android.content.pm.PackageManager
 import android.graphics.Bitmap
 import android.graphics.drawable.Drawable
-import android.os.Build
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.Image
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.padding
-import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Text
+import androidx.compose.foundation.layout.*
+import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.asImageBitmap
-import androidx.compose.ui.graphics.painter.Painter
-import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontWeight
@@ -41,9 +26,6 @@ import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.core.graphics.drawable.toBitmap
-import androidx.lifecycle.Lifecycle
-import androidx.lifecycle.lifecycleScope
-import androidx.lifecycle.repeatOnLifecycle
 import com.example.serviceproviderapp.networking.DecodeInvoiceRequest
 import com.example.serviceproviderapp.networking.LNBitsService
 import com.example.serviceproviderapp.networking.RetrofitFactory
@@ -51,9 +33,13 @@ import com.example.walletapp.data.models.DecodedLightningInvoice
 import com.example.walletapp.data.models.PayInvoiceRequest
 import com.example.walletapp.ui.theme.LightOrange
 import com.example.walletapp.ui.theme.WalletAppTheme
-import kotlinx.coroutines.launch
+import io.reactivex.rxjava3.android.schedulers.AndroidSchedulers
+import io.reactivex.rxjava3.disposables.CompositeDisposable
+import io.reactivex.rxjava3.schedulers.Schedulers
 
 class PayInvoiceActivity : ComponentActivity() {
+
+    private val disposables = CompositeDisposable()
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -65,28 +51,40 @@ class PayInvoiceActivity : ComponentActivity() {
 
         var decodedInvoice: DecodedLightningInvoice? by mutableStateOf(null)
 
-        lifecycleScope.launch {
-            repeatOnLifecycle(Lifecycle.State.STARTED) {
-                decodedInvoice = lnBitsService.decodeInvoice(DecodeInvoiceRequest(invoice))
-            }
-        }
+        disposables.add(
+            lnBitsService.decodeInvoice(DecodeInvoiceRequest(invoice))
+                .subscribeOn(Schedulers.io())
+                .observeOn(AndroidSchedulers.mainThread())
+                .subscribe { decodedLightningInvoice ->
+                    decodedInvoice = decodedLightningInvoice
+                })
 
         setContent {
-            val coroutineScope = rememberCoroutineScope()
+
 
             PayInvoiceScreen(
                 invoiceAmount = (decodedInvoice?.amountMSat ?: 0) / 1000,
                 paymentRequesterName = appName,
                 paymentRequesterIcon = appIcon,
                 onConfirmPaymentClick = {
-                    coroutineScope.launch {
-                        lnBitsService.payInvoice(PayInvoiceRequest(invoice))
-                        setResult(Activity.RESULT_OK)
-                        finish()
-                    }
+                    disposables.add(lnBitsService.payInvoice(PayInvoiceRequest(invoice))
+                        .subscribeOn(Schedulers.io())
+                        .observeOn(AndroidSchedulers.mainThread())
+                        .doAfterTerminate {
+                            setResult(Activity.RESULT_OK)
+                            finish()
+                        }
+                        .subscribe {
+                            // do nothing
+                        })
                 }
             )
         }
+    }
+
+    override fun onDestroy() {
+        super.onDestroy()
+        disposables.clear()
     }
 
     companion object {

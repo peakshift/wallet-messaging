@@ -7,6 +7,9 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.serviceproviderapp.data.models.WalletDetails
 import com.example.serviceproviderapp.networking.LNBitsService
+import io.reactivex.rxjava3.android.schedulers.AndroidSchedulers
+import io.reactivex.rxjava3.disposables.CompositeDisposable
+import io.reactivex.rxjava3.schedulers.Schedulers
 import kotlinx.coroutines.launch
 
 class MainViewModel(
@@ -16,14 +19,24 @@ class MainViewModel(
     var walletDetails: WalletDetails? by mutableStateOf(null)
         private set
 
+    private val disposables = CompositeDisposable()
+
     init {
         loadWalletDetails()
     }
 
     fun loadWalletDetails() {
-        viewModelScope.launch {
-            walletDetails = lnBitsService.getWalletDetails()
-        }
+        disposables.add(
+            lnBitsService.getWalletDetails()
+                .subscribeOn(Schedulers.io())
+                .observeOn(AndroidSchedulers.mainThread())
+                .subscribe { details -> walletDetails = details }
+        )
+    }
+
+    override fun onCleared() {
+        super.onCleared()
+        disposables.clear()
     }
 
 }

@@ -5,6 +5,8 @@ import com.example.serviceproviderapp.data.models.LightningInvoiceRequest
 import com.example.serviceproviderapp.data.models.WalletDetails
 import com.example.walletapp.data.models.DecodedLightningInvoice
 import com.example.walletapp.data.models.PayInvoiceRequest
+import io.reactivex.rxjava3.core.Completable
+import io.reactivex.rxjava3.core.Single
 import retrofit2.http.Body
 import retrofit2.http.GET
 import retrofit2.http.Headers
@@ -14,19 +16,19 @@ interface LNBitsService {
 
     @Headers("X-Api-Key: $API_READ_KEY")
     @GET("/api/v1/wallet")
-    suspend fun getWalletDetails(): WalletDetails
+    fun getWalletDetails(): Single<WalletDetails>
 
     @Headers("X-Api-Key: $API_READ_KEY")
     @POST("/api/v1/payments")
-    suspend fun generateInvoice(@Body lightningInvoiceRequest: LightningInvoiceRequest): LightningInvoice
+    fun generateInvoice(@Body lightningInvoiceRequest: LightningInvoiceRequest): Single<LightningInvoice>
 
     @Headers("X-Api-Key: $API_READ_KEY")
     @POST("/api/v1/payments/decode")
-    suspend fun decodeInvoice(@Body decodeInvoiceRequest: DecodeInvoiceRequest): DecodedLightningInvoice
+    fun decodeInvoice(@Body decodeInvoiceRequest: DecodeInvoiceRequest): Single<DecodedLightningInvoice>
 
     @Headers("X-Api-Key: $API_ADMIN_KEY")
     @POST("/api/v1/payments")
-    suspend fun payInvoice(@Body payInvoiceRequest: PayInvoiceRequest)
+    fun payInvoice(@Body payInvoiceRequest: PayInvoiceRequest): Completable
 
 }
 
