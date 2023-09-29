@@ -26,13 +26,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Text
+import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -67,13 +61,14 @@ class MainActivity : ComponentActivity() {
         setContent {
             ServiceProviderAppTheme {
                 ServiceProviderAppMainScreen(
+                    viewState = viewModel.viewState,
                     walletDetails = viewModel.walletDetails,
                     lightningInvoice = viewModel.lightningInvoice?.paymentRequest,
                     invoiceAmount = viewModel.invoiceAmount,
                     onInvoiceAmountEntered = { viewModel.onInvoiceAmountEntered(it) },
                     onGenerateInvoiceClick = { viewModel.generateInvoice() },
                     onCopyInvoiceClick = { copyToClipboard(it, "invoice") },
-                    onPayWithWalletClick = { openWalletApp(it) }
+                    onPayWithWalletClick = { payInBackground(it) }
                 )
             }
         }
@@ -88,12 +83,22 @@ class MainActivity : ComponentActivity() {
         val uri = Uri.Builder()
             .scheme("lightning")
             .appendQueryParameter("invoice", lightningInvoice)
-            .appendQueryParameter("providerName", getString(R.string.app_name))
-            .appendQueryParameter("providerID", packageName)
             .build();
-        val intent = Intent(Intent.ACTION_VIEW, uri)
 
         walletAppResultLauncher.launch(intent)
+    }
+
+    private fun payInBackground(lightningInvoice: String) {
+        viewModel.checkForPayment()
+        val uri = Uri.Builder()
+            .scheme("lightning")
+            .appendQueryParameter("invoice", lightningInvoice)
+            .build();
+
+        Intent.ACTION_VIEW
+        val intent = Intent("com.example.walletapp.PAYMENT_REQUEST", uri)
+        intent.setPackage("com.example.walletapp")
+        sendBroadcast(intent)
     }
 }
 
@@ -101,6 +106,7 @@ class MainActivity : ComponentActivity() {
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun ServiceProviderAppMainScreen(
+    viewState: MainViewModel.ViewState,
     walletDetails: WalletDetails?,
     lightningInvoice: String? = null,
     invoiceAmount: String?,
@@ -155,26 +161,36 @@ private fun ServiceProviderAppMainScreen(
                     Text(text = "Generate invoice")
                 }
 
-                lightningInvoice?.let { invoice ->
-                    Spacer(modifier = Modifier.height(32.dp))
-                    Text(text = invoice)
-                    Spacer(modifier = Modifier.height(8.dp))
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween
-                    ) {
-                        Button(onClick = { onCopyInvoiceClick(lightningInvoice) }) {
-                            Text(text = "Copy")
-                        }
+                when (viewState) {
+                    MainViewModel.ViewState.Idle ->
+                        lightningInvoice?.let { invoice ->
+                            Spacer(modifier = Modifier.height(32.dp))
+                            Text(text = invoice)
+                            Spacer(modifier = Modifier.height(8.dp))
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween
+                            ) {
+                                Button(onClick = { onCopyInvoiceClick(lightningInvoice) }) {
+                                    Text(text = "Copy")
+                                }
 
-                        Button(
-                            onClick = { onPayWithWalletClick(lightningInvoice) },
-                            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFF7931A))
-                        ) {
-                            Text(text = "Pay with Wallet ₿")
+                                Button(
+                                    onClick = { onPayWithWalletClick(lightningInvoice) },
+                                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFF7931A))
+                                ) {
+                                    Text(text = "Pay with Wallet ₿")
+                                }
+                            }
                         }
-                    }
+                    MainViewModel.ViewState.CheckingInvoice ->
+                        CircularProgressIndicator()
+                    MainViewModel.ViewState.Error ->
+                        Text("Something went wrong!")
+                    MainViewModel.ViewState.InvoicePaid ->
+                        Text("Invoice paid!")
                 }
+
             } else {
                 Text(
                     text = "No Wallet Details",
@@ -190,6 +206,7 @@ private fun ServiceProviderAppMainScreen(
 fun ServiceProviderAppMainScreenPreview() {
     ServiceProviderAppTheme {
         ServiceProviderAppMainScreen(
+            viewState = MainViewModel.ViewState.Idle,
             walletDetails = WalletDetails("Wallet Name", 100000),
             onGenerateInvoiceClick = {},
             lightningInvoice = null,

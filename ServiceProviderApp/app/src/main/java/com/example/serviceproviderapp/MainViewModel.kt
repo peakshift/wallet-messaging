@@ -11,11 +11,13 @@ import com.example.serviceproviderapp.data.models.LightningInvoiceRequest
 import com.example.serviceproviderapp.data.models.WalletDetails
 import com.example.serviceproviderapp.networking.LNBitsService
 import io.reactivex.rxjava3.android.schedulers.AndroidSchedulers
+import io.reactivex.rxjava3.core.Observable
 import io.reactivex.rxjava3.disposables.CompositeDisposable
 import io.reactivex.rxjava3.kotlin.subscribeBy
 import io.reactivex.rxjava3.schedulers.Schedulers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.processNextEventInCurrentThread
+import java.util.concurrent.TimeUnit
 
 class MainViewModel(
     val lnBitsService: LNBitsService
@@ -30,6 +32,9 @@ class MainViewModel(
         private set
 
     private val disposables = CompositeDisposable()
+
+    var viewState: ViewState by mutableStateOf(ViewState.Idle)
+        private set
 
     init {
         getWalletDetails()
@@ -50,10 +55,32 @@ class MainViewModel(
                 lnBitsService.generateInvoice(LightningInvoiceRequest(amount = it))
                     .subscribeOn(Schedulers.io())
                     .observeOn(AndroidSchedulers.mainThread())
+                    .doFinally { viewState = ViewState.Idle }
                     .subscribeBy(
                         onSuccess = { lightningInvoice = it },
                         onError = { it.printStackTrace() }
                     )
+            )
+        }
+    }
+
+    fun checkForPayment() {
+        val paymentHash = lightningInvoice?.paymentHash
+        paymentHash?.let {
+            disposables.add(
+                Observable.interval(3, TimeUnit.SECONDS)
+                    .flatMapSingle { lnBitsService.checkInvoice(paymentHash).map { it.paid } }
+                    .timeout(30, TimeUnit.SECONDS)
+                    .takeUntil { paid -> paid }
+                    .map { paid -> if (paid) ViewState.InvoicePaid else ViewState.Error }
+                    .onErrorReturn { ViewState.Error }
+                    .subscribeOn(Schedulers.io())
+                    .observeOn(AndroidSchedulers.mainThread())
+                    .startWithItem(ViewState.CheckingInvoice)
+                    .subscribe {
+                        viewState = it
+                        getWalletDetails()
+                    }
             )
         }
     }
@@ -63,6 +90,7 @@ class MainViewModel(
         disposables.clear()
     }
 
+
     private fun getWalletDetails() {
         disposables.add(lnBitsService.getWalletDetails()
             .subscribeOn(Schedulers.io())
@@ -71,5 +99,12 @@ class MainViewModel(
                 onSuccess = { walletDetails = it },
                 onError = { Log.i("MainViewModel", "Error loading wallet details: ${it.message}") }
             ))
+    }
+
+    sealed interface ViewState {
+        object Idle : ViewState
+        object CheckingInvoice : ViewState
+        object InvoicePaid : ViewState
+        object Error : ViewState
     }
 }

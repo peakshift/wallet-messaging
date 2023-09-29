@@ -1,5 +1,6 @@
 package com.example.serviceproviderapp.networking
 
+import com.example.serviceproviderapp.data.models.CheckInvoiceResponse
 import com.example.serviceproviderapp.data.models.LightningInvoice
 import com.example.serviceproviderapp.data.models.LightningInvoiceRequest
 import com.example.serviceproviderapp.data.models.WalletDetails
@@ -8,6 +9,7 @@ import retrofit2.http.Body
 import retrofit2.http.GET
 import retrofit2.http.Headers
 import retrofit2.http.POST
+import retrofit2.http.Path
 
 interface LNBitsService {
 
@@ -18,6 +20,10 @@ interface LNBitsService {
     @Headers("X-Api-Key: $API_KEY")
     @POST("/api/v1/payments")
     fun generateInvoice(@Body lightningInvoiceRequest: LightningInvoiceRequest): Single<LightningInvoice>
+
+    @Headers("X-Api-Key: $API_KEY")
+    @GET("/api/v1/payments/{payment_hash}")
+    fun checkInvoice(@Path("payment_hash") paymentHash: String): Single<CheckInvoiceResponse>
 
 }
 
