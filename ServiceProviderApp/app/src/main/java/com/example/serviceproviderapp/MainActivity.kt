@@ -7,35 +7,38 @@ import android.content.ClipboardManager
 import android.content.Context
 import android.content.Intent
 import android.net.Uri
-import android.os.Build
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.imePadding
-import androidx.compose.foundation.layout.padding
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.animateIntAsState
+import androidx.compose.animation.core.tween
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.buildAnnotatedString
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
-import androidx.core.os.BuildCompat
+import androidx.compose.ui.unit.sp
 import com.example.serviceproviderapp.data.models.WalletDetails
 import com.example.serviceproviderapp.networking.LNBitsService
 import com.example.serviceproviderapp.networking.RetrofitFactory
@@ -85,6 +88,7 @@ class MainActivity : ComponentActivity() {
             .appendQueryParameter("invoice", lightningInvoice)
             .build();
 
+        val intent = Intent(Intent.ACTION_VIEW, uri)
         walletAppResultLauncher.launch(intent)
     }
 
@@ -127,12 +131,22 @@ private fun ServiceProviderAppMainScreen(
             if (walletDetails != null) {
                 Text(
                     text = walletDetails.name,
-                    style = MaterialTheme.typography.headlineMedium
+                    style = MaterialTheme.typography.headlineLarge
                 )
                 Spacer(modifier = Modifier.height(8.dp))
+
+                val balance by animateIntAsState(
+                    targetValue = walletDetails.balance / 1000,
+                    animationSpec = tween()
+                )
                 Text(
-                    text = "Balance: ${walletDetails.balance / 1000} sats",
-                    style = MaterialTheme.typography.headlineSmall
+                    text = buildAnnotatedString {
+                        append("Balance: ")
+                        withStyle(SpanStyle(fontWeight = FontWeight.Bold)) {
+                            append("$balance sats")
+                        }
+                    },
+                    style = MaterialTheme.typography.headlineMedium
                 )
                 Spacer(modifier = Modifier.height(24.dp))
                 Row(
@@ -161,10 +175,10 @@ private fun ServiceProviderAppMainScreen(
                     Text(text = "Generate invoice")
                 }
 
+                Spacer(modifier = Modifier.height(32.dp))
                 when (viewState) {
                     MainViewModel.ViewState.Idle ->
                         lightningInvoice?.let { invoice ->
-                            Spacer(modifier = Modifier.height(32.dp))
                             Text(text = invoice)
                             Spacer(modifier = Modifier.height(8.dp))
                             Row(
@@ -183,12 +197,55 @@ private fun ServiceProviderAppMainScreen(
                                 }
                             }
                         }
+
                     MainViewModel.ViewState.CheckingInvoice ->
-                        CircularProgressIndicator()
-                    MainViewModel.ViewState.Error ->
-                        Text("Something went wrong!")
+                        Box(
+                            modifier = Modifier.fillMaxSize(),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            CircularProgressIndicator()
+                        }
+
                     MainViewModel.ViewState.InvoicePaid ->
-                        Text("Invoice paid!")
+                        Column(
+                            modifier = Modifier.fillMaxSize(),
+                            horizontalAlignment = Alignment.CenterHorizontally
+                        ) {
+                            Box(
+                                modifier = Modifier
+                                    .size(64.dp)
+                                    .background(color = Color(0xFF7DC182), shape = CircleShape),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Icon(
+                                    painter = painterResource(R.drawable.ic_check_large),
+                                    contentDescription = null,
+                                    tint = Color.White
+                                )
+                            }
+                            Spacer(Modifier.height(16.dp))
+                            Text("Invoice paid!", style = TextStyle(fontSize = 24.sp))
+                        }
+
+                    MainViewModel.ViewState.Error ->
+                        Column(
+                            modifier = Modifier.fillMaxSize(),
+                            horizontalAlignment = Alignment.CenterHorizontally
+                        ) {
+                            Box(
+                                modifier = Modifier
+                                    .size(64.dp)
+                                    .background(color = Color(0xFFFD4A43), shape = CircleShape)
+                            ) {
+                                Icon(
+                                    painter = painterResource(R.drawable.ic_x_large),
+                                    contentDescription = null,
+                                    tint = Color.White
+                                )
+                            }
+                            Spacer(Modifier.height(16.dp))
+                            Text("Something went wrong!", style = TextStyle(fontSize = 24.sp))
+                        }
                 }
 
             } else {
@@ -206,7 +263,7 @@ private fun ServiceProviderAppMainScreen(
 fun ServiceProviderAppMainScreenPreview() {
     ServiceProviderAppTheme {
         ServiceProviderAppMainScreen(
-            viewState = MainViewModel.ViewState.Idle,
+            viewState = MainViewModel.ViewState.InvoicePaid,
             walletDetails = WalletDetails("Wallet Name", 100000),
             onGenerateInvoiceClick = {},
             lightningInvoice = null,
