@@ -7,12 +7,15 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.serviceproviderapp.data.models.WalletDetails
 import com.example.serviceproviderapp.networking.LNBitsService
+import dagger.hilt.android.lifecycle.HiltViewModel
 import io.reactivex.rxjava3.android.schedulers.AndroidSchedulers
 import io.reactivex.rxjava3.disposables.CompositeDisposable
 import io.reactivex.rxjava3.schedulers.Schedulers
 import kotlinx.coroutines.launch
+import javax.inject.Inject
 
-class MainViewModel(
+@HiltViewModel
+class MainViewModel @Inject constructor(
     val lnBitsService: LNBitsService
 ) : ViewModel() {
 

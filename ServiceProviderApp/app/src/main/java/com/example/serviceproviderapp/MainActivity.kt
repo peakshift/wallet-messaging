@@ -6,12 +6,13 @@ import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Context
 import android.content.Intent
+import android.content.SharedPreferences
 import android.net.Uri
 import android.os.Bundle
+import android.util.Log
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.animateIntAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
@@ -39,6 +40,7 @@ import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.core.content.edit
 import com.example.serviceproviderapp.data.models.WalletDetails
 import com.example.serviceproviderapp.networking.LNBitsService
 import com.example.serviceproviderapp.networking.RetrofitFactory
@@ -47,10 +49,19 @@ import com.example.serviceproviderapp.ui.theme.ServiceProviderAppTheme
 class MainActivity : ComponentActivity() {
 
     private lateinit var viewModel: MainViewModel
+    private lateinit var sharedPreferences: SharedPreferences
 
     private val walletAppResultLauncher =
         registerForActivityResult(ActivityResultContracts.StartActivityForResult()) {
             if (it.resultCode == Activity.RESULT_OK) {
+                val packageName = it.data?.getStringExtra("package_name")
+                Log.i("MAIN_ACTIVITY", "Package name: $packageName")
+                if (packageName != null) {
+//                    viewModel.storeWalletForBackgroundPayments(packageName)
+                    sharedPreferences.edit {
+                        putString("background_payments_wallet", packageName)
+                    }
+                }
                 viewModel.refresh()
             }
         }
@@ -59,7 +70,8 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
 
         val lnBitsService = RetrofitFactory.retrofit.create(LNBitsService::class.java)
-        viewModel = MainViewModel(lnBitsService)
+        sharedPreferences = applicationContext.getSharedPreferences("background_payments", Context.MODE_PRIVATE)
+        viewModel = MainViewModel(lnBitsService, sharedPreferences)
 
         setContent {
             ServiceProviderAppTheme {
@@ -71,7 +83,14 @@ class MainActivity : ComponentActivity() {
                     onInvoiceAmountEntered = { viewModel.onInvoiceAmountEntered(it) },
                     onGenerateInvoiceClick = { viewModel.generateInvoice() },
                     onCopyInvoiceClick = { copyToClipboard(it, "invoice") },
-                    onPayWithWalletClick = { payInBackground(it) }
+                    onPayWithWalletClick = { invoice ->
+                        val backgroundPaymentWallet = sharedPreferences.getString("background_payments_wallet", null)
+                        if (backgroundPaymentWallet != null) {
+                            payInBackground(invoice)
+                        } else {
+                            openWalletApp(invoice)
+                        }
+                    }
                 )
             }
         }

@@ -3,7 +3,9 @@ package com.example.walletapp
 import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
+import android.content.SharedPreferences
 import android.graphics.Bitmap
+import android.os.Build
 import android.util.Log
 import com.example.serviceproviderapp.networking.LNBitsService
 import com.example.serviceproviderapp.networking.RetrofitFactory
@@ -15,16 +17,22 @@ import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.launch
 import retrofit2.create
+import javax.inject.Inject
 
 class PaymentBroadcastReceiver : BroadcastReceiver() {
 
     private val tag = "BroadcastReceiver"
+
+    @Inject
+    lateinit var sharedPreferences: SharedPreferences
 
     override fun onReceive(context: Context?, intent: Intent?) {
         Log.i(tag, "#### Broadcast received")
 
         val uri = intent?.data
         val lightningInvoice = uri?.getQueryParameter("invoice")
+
+
 
         if (lightningInvoice != null) {
             val pendingIntent = goAsync()

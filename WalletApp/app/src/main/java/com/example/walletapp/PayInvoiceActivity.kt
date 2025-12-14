@@ -8,13 +8,11 @@ import android.graphics.drawable.Drawable
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
+import androidx.activity.viewModels
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.asImageBitmap
@@ -26,77 +24,69 @@ import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.core.graphics.drawable.toBitmap
-import com.example.serviceproviderapp.networking.DecodeInvoiceRequest
-import com.example.serviceproviderapp.networking.LNBitsService
-import com.example.serviceproviderapp.networking.RetrofitFactory
-import com.example.walletapp.data.models.DecodedLightningInvoice
-import com.example.walletapp.data.models.PayInvoiceRequest
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.lifecycleScope
+import androidx.lifecycle.repeatOnLifecycle
 import com.example.walletapp.ui.theme.LightOrange
 import com.example.walletapp.ui.theme.WalletAppTheme
-import io.reactivex.rxjava3.android.schedulers.AndroidSchedulers
-import io.reactivex.rxjava3.disposables.CompositeDisposable
-import io.reactivex.rxjava3.schedulers.Schedulers
+import dagger.hilt.android.AndroidEntryPoint
+import kotlinx.coroutines.launch
 
+@AndroidEntryPoint
 class PayInvoiceActivity : ComponentActivity() {
 
-    private val disposables = CompositeDisposable()
+    private val viewModel: PayInvoiceViewModel by viewModels()
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
-        val invoice = checkNotNull(intent.getStringExtra(INVOICE_EXTRA))
-        val appName = intent.getStringExtra(APP_NAME_EXTRA)
-        val appIcon = intent.getParcelableExtra<Bitmap>(APP_ICON_EXTRA)
-        val lnBitsService = RetrofitFactory.retrofit.create(LNBitsService::class.java)
-
-        var decodedInvoice: DecodedLightningInvoice? by mutableStateOf(null)
-
-        disposables.add(
-            lnBitsService.decodeInvoice(DecodeInvoiceRequest(invoice))
-                .subscribeOn(Schedulers.io())
-                .observeOn(AndroidSchedulers.mainThread())
-                .subscribe { decodedLightningInvoice ->
-                    decodedInvoice = decodedLightningInvoice
-                })
-
         setContent {
-
-
             PayInvoiceScreen(
-                invoiceAmount = (decodedInvoice?.amountMSat ?: 0) / 1000,
-                paymentRequesterName = appName,
-                paymentRequesterIcon = appIcon,
-                onConfirmPaymentClick = {
-                    disposables.add(lnBitsService.payInvoice(PayInvoiceRequest(invoice))
-                        .subscribeOn(Schedulers.io())
-                        .observeOn(AndroidSchedulers.mainThread())
-                        .doAfterTerminate {
-                            setResult(Activity.RESULT_OK)
+                invoiceAmount = viewModel.invoiceAmount,
+                paymentRequesterName = viewModel.appName,
+                paymentRequesterIcon = viewModel.appIcon,
+                onConfirmPaymentClick = { viewModel.payInvoice() },
+                backgroundPaymentsEnabled = viewModel.backgroundPaymentsEnabled,
+                onEnableBackgroundPaymentsToggled = { viewModel.onEnableBackgroundPaymentsToggled(it) }
+            )
+        }
+
+        lifecycleScope.launch {
+            repeatOnLifecycle(Lifecycle.State.STARTED) {
+                viewModel.events.collect { event ->
+                    when (event) {
+                        is PayInvoiceViewModel.Event.CloseAndGoBack -> {
+                            val intent = Intent()
+                            if (event.backgroundPaymentsEnabled) {
+                                intent.putExtra("package_name", packageName)
+                            }
+                            setResult(RESULT_OK, intent)
                             finish()
                         }
-                        .subscribe {
-                            // do nothing
-                        })
+                    }
                 }
-            )
+            }
         }
     }
 
-    override fun onDestroy() {
-        super.onDestroy()
-        disposables.clear()
-    }
-
     companion object {
-        private const val INVOICE_EXTRA = "invoice_extra"
-        private const val APP_NAME_EXTRA = "app_name_extra"
-        private const val APP_ICON_EXTRA = "app_icon_extra"
+        const val INVOICE_EXTRA = "invoice_extra"
+        const val LAUNCHING_APP_PACKAGE_EXTRA = "launching_package_extra"
+        const val LAUNCHING_APP_NAME_EXTRA = "app_name_extra"
+        const val LAUNCHING_APP_ICON_EXTRA = "app_icon_extra"
 
-        fun newIntent(context: Context, invoice: String, appName: String? = null, appIcon: Drawable? = null): Intent {
+        fun newIntent(
+            context: Context,
+            invoice: String,
+            launchingPackage: String? = null,
+            appName: String? = null,
+            appIcon: Drawable? = null
+        ): Intent {
             val intent = Intent(context, PayInvoiceActivity::class.java)
             intent.putExtra(INVOICE_EXTRA, invoice)
-            intent.putExtra(APP_NAME_EXTRA, appName)
-            intent.putExtra(APP_ICON_EXTRA, appIcon?.toBitmap())
+            intent.putExtra(LAUNCHING_APP_PACKAGE_EXTRA, launchingPackage)
+            intent.putExtra(LAUNCHING_APP_NAME_EXTRA, appName)
+            intent.putExtra(LAUNCHING_APP_ICON_EXTRA, appIcon?.toBitmap())
             return intent
         }
     }
@@ -105,10 +95,12 @@ class PayInvoiceActivity : ComponentActivity() {
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun PayInvoiceScreen(
-    invoiceAmount: Int,
+    invoiceAmount: Int?,
     paymentRequesterName: String? = null,
     paymentRequesterIcon: Bitmap? = null,
-    onConfirmPaymentClick: () -> Unit
+    onConfirmPaymentClick: () -> Unit,
+    backgroundPaymentsEnabled: Boolean,
+    onEnableBackgroundPaymentsToggled: (Boolean) -> Unit
 ) {
     Scaffold { paddingValues ->
         Column(
@@ -131,7 +123,11 @@ private fun PayInvoiceScreen(
                 text = buildAnnotatedString {
                     append("You're about to pay:\n\n")
                     withStyle(SpanStyle(fontWeight = FontWeight.Bold)) {
-                        append("$invoiceAmount sats ")
+                        if (invoiceAmount != null) {
+                            append("$invoiceAmount sats ")
+                        } else {
+                            append("No invoice amount")
+                        }
                     }
                     if (paymentRequesterName != null) {
                         append("to $paymentRequesterName")
@@ -147,6 +143,21 @@ private fun PayInvoiceScreen(
             ) {
                 Text(text = "Confirm Payment")
             }
+            Spacer(modifier = Modifier.height(48.dp))
+            Row(
+                modifier = Modifier.fillMaxSize(),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Checkbox(
+                    checked = backgroundPaymentsEnabled,
+                    onCheckedChange = onEnableBackgroundPaymentsToggled
+                )
+                Spacer(modifier = Modifier.width(16.dp))
+                Text(
+                    text = "Enable background payments for this app",
+                    style = MaterialTheme.typography.bodyLarge
+                )
+            }
         }
     }
 }
@@ -159,7 +170,9 @@ private fun PayInvoiceScreenPreview() {
             invoiceAmount = 1000,
             paymentRequesterName = "Service Provider",
             paymentRequesterIcon = null,
-            onConfirmPaymentClick = {}
+            onConfirmPaymentClick = {},
+            backgroundPaymentsEnabled = false,
+            onEnableBackgroundPaymentsToggled = {}
         )
     }
 }

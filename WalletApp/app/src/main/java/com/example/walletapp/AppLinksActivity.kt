@@ -10,7 +10,7 @@ import androidx.core.graphics.drawable.toBitmap
 class AppLinksActivity : ComponentActivity() {
 
     private val activityResultLauncher = registerForActivityResult(StartActivityForResult()) {
-        setResult(it.resultCode)
+        setResult(it.resultCode, it.data)
         finish()
     }
 
@@ -23,7 +23,7 @@ class AppLinksActivity : ComponentActivity() {
         val launchingPackage = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP_MR1) {
             referrer?.host
         } else {
-            intent.getStringExtra(Intent.EXTRA_REFERRER_NAME)
+            callingPackage
         }
 
         val applicationInfo = packageManager.getApplicationInfo(launchingPackage ?: "", 0)
@@ -34,6 +34,7 @@ class AppLinksActivity : ComponentActivity() {
             val intent = PayInvoiceActivity.newIntent(
                 context = this,
                 invoice = lightningInvoice,
+                launchingPackage = launchingPackage,
                 appName = appName,
                 appIcon = appIcon
             )

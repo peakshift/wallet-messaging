@@ -1,11 +1,12 @@
 package com.example.serviceproviderapp
 
+import android.content.SharedPreferences
 import android.util.Log
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
+import androidx.core.content.edit
 import androidx.lifecycle.ViewModel
-import androidx.lifecycle.viewModelScope
 import com.example.serviceproviderapp.data.models.LightningInvoice
 import com.example.serviceproviderapp.data.models.LightningInvoiceRequest
 import com.example.serviceproviderapp.data.models.WalletDetails
@@ -15,12 +16,11 @@ import io.reactivex.rxjava3.core.Observable
 import io.reactivex.rxjava3.disposables.CompositeDisposable
 import io.reactivex.rxjava3.kotlin.subscribeBy
 import io.reactivex.rxjava3.schedulers.Schedulers
-import kotlinx.coroutines.launch
-import kotlinx.coroutines.processNextEventInCurrentThread
 import java.util.concurrent.TimeUnit
 
 class MainViewModel(
-    val lnBitsService: LNBitsService
+    private val lnBitsService: LNBitsService,
+    private val sharedPreferences: SharedPreferences
 ) : ViewModel() {
 
     var walletDetails: WalletDetails? by mutableStateOf(null)
@@ -97,8 +97,14 @@ class MainViewModel(
             .observeOn(AndroidSchedulers.mainThread())
             .subscribeBy(
                 onSuccess = { walletDetails = it },
-                onError = { Log.i("MainViewModel", "Error loading wallet details: ${it.message}") }
+                onError = { Log.i("MainViewModel", "Error loading wallet details: $it") }
             ))
+    }
+
+    fun storeWalletForBackgroundPayments(walletPackageName: String) {
+        sharedPreferences.edit {
+            putBoolean(walletPackageName, true)
+        }
     }
 
     sealed interface ViewState {
