@@ -3,10 +3,6 @@ ServiceProviderApp/.idea/deploymentTargetDropDown.xml
 ServiceProviderApp/.idea/gradle.xml
 ServiceProviderApp/.idea/inspectionProfiles/Project_Default.xml
 ServiceProviderApp/.idea/misc.xml
-WalletApp/.idea/gradle.xml
-WalletApp/.idea/inspectionProfiles/Project_Default.xml
-WalletApp/.idea/misc.xml
 ServiceProviderApp/.idea/codeStyles/Project.xml
 ServiceProviderApp/.idea/codeStyles/codeStyleConfig.xml
-WalletApp/.idea/deploymentTargetDropDown.xml
-WalletApp/.idea/kotlinc.xml
+WalletApp/.idea
