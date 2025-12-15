@@ -4,14 +4,13 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.lifecycle.ViewModel
-import androidx.lifecycle.viewModelScope
 import com.example.serviceproviderapp.data.models.WalletDetails
 import com.example.serviceproviderapp.networking.LNBitsService
 import dagger.hilt.android.lifecycle.HiltViewModel
 import io.reactivex.rxjava3.android.schedulers.AndroidSchedulers
 import io.reactivex.rxjava3.disposables.CompositeDisposable
+import io.reactivex.rxjava3.kotlin.subscribeBy
 import io.reactivex.rxjava3.schedulers.Schedulers
-import kotlinx.coroutines.launch
 import javax.inject.Inject
 
 @HiltViewModel
@@ -33,7 +32,10 @@ class MainViewModel @Inject constructor(
             lnBitsService.getWalletDetails()
                 .subscribeOn(Schedulers.io())
                 .observeOn(AndroidSchedulers.mainThread())
-                .subscribe { details -> walletDetails = details }
+                .subscribeBy(
+                    onSuccess = { details -> walletDetails = details },
+                    onError = { it.printStackTrace() }
+                )
         )
     }
 
