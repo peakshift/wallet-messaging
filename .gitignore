@@ -1,8 +1,7 @@
 .DS_Store
-ServiceProviderApp/.idea/deploymentTargetDropDown.xml
-ServiceProviderApp/.idea/gradle.xml
-ServiceProviderApp/.idea/inspectionProfiles/Project_Default.xml
-ServiceProviderApp/.idea/misc.xml
-ServiceProviderApp/.idea/codeStyles/Project.xml
-ServiceProviderApp/.idea/codeStyles/codeStyleConfig.xml
 WalletApp/.idea
+ServiceProviderApp/.idea
+ServiceProviderApp/.gradle
+ServiceProviderApp/build
+WalletApp/.gradle
+WalletApp/build
