@@ -34,8 +34,6 @@ import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.repeatOnLifecycle
 import com.example.serviceproviderapp.data.models.WalletDetails
-import com.example.serviceproviderapp.networking.LNBitsService
-import com.example.serviceproviderapp.networking.RetrofitFactory
 import com.example.walletapp.ui.theme.LightOrange
 import com.example.walletapp.ui.theme.WalletAppTheme
 import dagger.hilt.android.AndroidEntryPoint
